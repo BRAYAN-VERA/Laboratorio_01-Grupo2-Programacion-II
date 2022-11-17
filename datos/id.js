@@ -1,58 +1,66 @@
 const express = require('express')
 const router_1 = express.Router()
+const Person = require('../model/Person')
 
-let { people_data } = require('../data')
-
-router_1.get('/', (req, res) => {
-    const simple_id = people_data.map((idvalue) => {
-        const {id} = idvalue
-        return {id}
-        })
-    res.status(200).json ({ success: true, data: simple_id})
+// muestra en la ruta principal todos los ID de las personas
+router_1.get('/', async(req, res) => {
+    try {
+        const simple_id = await Person.find({}, {_id: 1})
+        res.status(200).json({success: true ,simple_id})
+    } catch (error) {
+        res.status(500).json({success: false , error:error })
+    }
 })
 
-router_1.post('/', (req,res) => {
-    const {id} = req.body
-
-    if (!id) { 
+// muestra segun el DNI el ID de la persona
+router_1.get('/:DNI', async (req, res) => {
+    const DNI = Number(req.params.DNI)
+    if (isNaN(DNI)) {
         return res
-        .status(404)
-        .json({success: false, msg: 'Proveer id'})
+            .status(400)
+            .json({ success: false, msg: 'Tipo de dato erroneo, ingrese un dato tipo numerico'})
     }
-    res.status(201).send( { success: true, data: [...people_data, id]})
-})
-
-
-router_1.put('/:DNI', (req, res) => {
-    const {DNI} = req.params
-    const {id} = req.body
-    const person = people_data.find ((person) => person.DNI === Number(DNI))
-    if (!person) {
-        return res
-            .status(404)
-            .json({ success: false, msg: `No hay persona con DNI: ${DNI}`})
-    }
-    const new_id = people_data.map(person => {
-        if (person.DNI === Number(DNI)) {
-            person.id = id
+    try {
+        const person = await Person.findOne({DNI: DNI})
+        if (!person) {
+            res.status(422).json({success: false ,msg: `No hay persona con el DNI: ${DNI}`})
+            return
         }
-        return person
-    })
-    res.status(201).send ( {success: true, data: new_id})
-})
-
-router_1.delete('/:id', (req, res) => {
-    const {id} = req.params
-    const id_person = people_data.find ((person) => person.id === Number(id))
-    if (!id_person) {
-        return res
-            .status(404)
-            .json({ success: false, msg: `No hay persona con id: ${id}`})
+        res.status(200).json({success: true, person})
+    } catch (error) {
+        res.status(500).json({success: false , error: error})
     }
-    const new_id = people_data.filter(person => person.id !== Number(id))
-    return res.status(200).send ( {success: true, data: new_id})
 })
 
+router_1.get('/buscar/:ID', async (req, res) => {
+    const ID = req.params.ID
+    try {
+        const person = await Person.findOne({_id: ID})
+        if (!person) {
+            res.status(422).json({success: false ,msg: `No hay usuarios con el ID: ${ID}`})
+            return
+        }
+        res.status(200).json({success: true, person})
+    } catch (error) {
+        res.status(500).json({success: false , error: error})
+    }
+})
+
+// elimina una persona segun el ID
+router_1.delete('/:id', async (req, res) => {
+    const id = req.params.id
+    const person = await Person.findOne({ _id: id })
+    if (!person) { 
+        res.status(422).json({ success: false, msg: `No hay persona con id: ${id}`})
+        return
+    }
+    try {
+        await Person.deleteOne({_id: id})
+        res.status(200).json({success: true ,msg: 'Usuario removido'})
+    } catch (error) {
+        res.status(500).json({ success: false, error: error })
+    }
+})
 
 
 module.exports = router_1
